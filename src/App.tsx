@@ -1,28 +1,27 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, type ChangeEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Download,
   RefreshCw,
   Upload,
   Layers,
-  Move,
   Palette,
   Sparkles,
   Wand2,
-  MousePointer2,
 } from "lucide-react";
 import { domToPng } from "modern-screenshot";
+import Slider from "./components/Slider";
+import type { BlobColors, BlobParams, Point } from "./@types/types";
 
-// --- ALGORITHME DE GÉNÉRATION DU BLOB ---
 const generateComplexBlob = (
   size: number,
   growth: number,
   edges: number,
   seed: number,
   smoothness: number,
-) => {
+): string => {
   const center = size / 2;
-  const points = [];
+  const points: Point[] = [];
   const angleStep = (Math.PI * 2) / edges;
 
   for (let i = 0; i < edges; i++) {
@@ -35,7 +34,7 @@ const generateComplexBlob = (
   }
 
   return (
-    points.reduce((path, p, i, a) => {
+    points.reduce((path: string, p: Point, i: number, a: Point[]) => {
       const next = a[(i + 1) % a.length];
       const control = { x: (p.x + next.x) / 2, y: (p.y + next.y) / 2 };
       return i === 0
@@ -45,9 +44,8 @@ const generateComplexBlob = (
   );
 };
 
-const Fluxy = () => {
-  // --- ÉTATS ---
-  const [params, setParams] = useState({
+const Fluxy: React.FC = () => {
+  const [params, setParams] = useState<BlobParams>({
     growth: 60,
     edges: 6,
     seed: Math.random() * 100,
@@ -57,18 +55,16 @@ const Fluxy = () => {
     blur: 0,
   });
 
-  const [colors, setColors] = useState({
+  const [colors, setColors] = useState<BlobColors>({
     primary: "#6366f1",
     secondary: "#a855f7",
   });
+
   const [image, setImage] = useState<string | null>(null);
   const [imageLayer, setImageLayer] = useState<"above" | "below">("above");
-
-  // Référence unique sur la zone transparente à capturer
   const stageRef = useRef<HTMLDivElement>(null);
 
-  // --- ACTIONS ---
-  const randomize = () => {
+  const randomize = (): void => {
     setParams((p) => ({
       ...p,
       seed: Math.random() * 100,
@@ -77,27 +73,26 @@ const Fluxy = () => {
     }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (en) => setImage(en.target?.result as string);
+      reader.onload = (en: ProgressEvent<FileReader>) => {
+        if (en.target?.result) {
+          setImage(en.target.result as string);
+        }
+      };
       reader.readAsDataURL(file);
     }
   };
 
-  // --- LOGIQUE D'EXPORTATION AVEC FIX OKLCH & TRANSPARENCE ---
-  const exportArt = async () => {
+  const exportArt = async (): Promise<void> => {
     if (!stageRef.current) return;
-
     try {
-      // domToPng capture fidèlement le DOM, gère l'oklch et préserve la transparence
       const imgData = await domToPng(stageRef.current, {
         quality: 1,
-        scale: 3, // Rendu ultra net (Haute Définition pour intégration UI)
+        scale: 3,
       });
-
-      // Déclenchement du téléchargement du fichier PNG
       const link = document.createElement("a");
       link.download = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
       link.href = imgData;
@@ -108,25 +103,28 @@ const Fluxy = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-300 flex flex-col lg:flex-row overflow-hidden font-sans">
-      {/* --- PANNEAU LATÉRAL (CONTROLES) --- */}
-      <aside className="w-full lg:w-96 bg-[#0c0c0c] border-r border-white/5 p-8 overflow-y-auto z-20 shadow-2xl">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-            <Sparkles className="text-white" size={20} />
-          </div>
-          <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">
-            Fluxy
-          </h1>
-        </div>
-
+    <div className="min-h-screen bg-[#030303] text-slate-300 flex flex-col lg:flex-row overflow-hidden font-sans antialiased">
+      <aside className="w-full lg:w-96 bg-[#09090b]/80 backdrop-blur-xl border-r border-white/5 p-8 overflow-y-auto z-20 flex flex-col justify-between shadow-2xl h-auto lg:h-screen">
         <div className="space-y-8">
-          {/* Section Géométrie */}
-          <section className="space-y-5">
-            <header className="flex items-center gap-2 text-indigo-400 mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-linear-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Sparkles className="text-white" size={18} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight text-white uppercase italic">
+                Fluxy
+              </h1>
+              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">
+                Blob Generator & Layer Lab
+              </p>
+            </div>
+          </div>
+
+          <section className="space-y-4 bg-white/2 p-4 rounded-2xl border border-white/5">
+            <header className="flex items-center gap-2 text-indigo-400 mb-1">
               <Wand2 size={14} />
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
-                Géométrie du Blob
+                Géométrie
               </h2>
             </header>
             <Slider
@@ -160,31 +158,48 @@ const Fluxy = () => {
             />
           </section>
 
-          {/* Section Style */}
-          <section className="space-y-5">
-            <header className="flex items-center gap-2 text-purple-400 mb-2">
+          <section className="space-y-4 bg-white/2 p-4 rounded-2xl border border-white/5">
+            <header className="flex items-center gap-2 text-purple-400 mb-1">
               <Palette size={14} />
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
                 Couleurs & Effets
               </h2>
             </header>
             <div className="grid grid-cols-2 gap-3">
-              <input
-                type="color"
-                value={colors.primary}
-                onChange={(e) =>
-                  setColors({ ...colors, primary: e.target.value })
-                }
-                className="w-full h-10 rounded-lg bg-white/5 border border-white/10 cursor-pointer"
-              />
-              <input
-                type="color"
-                value={colors.secondary}
-                onChange={(e) =>
-                  setColors({ ...colors, secondary: e.target.value })
-                }
-                className="w-full h-10 rounded-lg bg-white/5 border border-white/10 cursor-pointer"
-              />
+              <div className="relative group h-11 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center">
+                <input
+                  type="color"
+                  value={colors.primary}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setColors({ ...colors, primary: e.target.value })
+                  }
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div
+                  className="w-4 h-4 rounded-full border border-white/20"
+                  style={{ backgroundColor: colors.primary }}
+                />
+                <span className="text-xs font-mono ml-2 text-white">
+                  {colors.primary}
+                </span>
+              </div>
+              <div className="relative group h-11 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center">
+                <input
+                  type="color"
+                  value={colors.secondary}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setColors({ ...colors, secondary: e.target.value })
+                  }
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div
+                  className="w-4 h-4 rounded-full border border-white/20"
+                  style={{ backgroundColor: colors.secondary }}
+                />
+                <span className="text-xs font-mono ml-2 text-white">
+                  {colors.secondary}
+                </span>
+              </div>
             </div>
             <Slider
               label="Opacité"
@@ -202,168 +217,143 @@ const Fluxy = () => {
               onChange={(v) => setParams({ ...params, blur: v })}
             />
           </section>
+        </div>
 
-          {/* Actions de l'application */}
-          <div className="pt-6 border-t border-white/5 flex flex-col gap-3">
+        <div className="pt-6 border-t border-white/5 flex flex-col gap-2.5 mt-6 lg:mt-0">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={randomize}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 font-medium"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5 font-medium text-sm text-white"
             >
-              <RefreshCw size={18} /> Aléatoire
+              <RefreshCw size={15} /> Mix
             </button>
-
-            <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all cursor-pointer group">
-              <Upload size={18} className="group-hover:text-indigo-400" />
-              <span className="text-sm">Importer Image</span>
-              <input
-                type="file"
-                className="hidden"
-                onChange={handleImageUpload}
-                accept="image/*"
-              />
-            </label>
-
             <button
               onClick={() =>
                 setImageLayer(imageLayer === "above" ? "below" : "above")
               }
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 transition-all font-bold text-xs uppercase"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 transition-all font-semibold text-xs uppercase tracking-wider border border-indigo-500/10"
             >
-              <Layers size={16} /> Image en :{" "}
-              {imageLayer === "above" ? "Premier plan" : "Arrière-plan"}
-            </button>
-
-            <button
-              onClick={exportArt}
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xl shadow-indigo-600/20 font-bold mt-4"
-            >
-              <Download size={20} /> Exporter PNG Transparent
+              <Layers size={15} />{" "}
+              {imageLayer === "above" ? "Dessus" : "Dessous"}
             </button>
           </div>
+
+          <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed border-white/10 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+            <Upload
+              size={16}
+              className="text-slate-500 group-hover:text-indigo-400 transition-colors"
+            />
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-200 transition-colors">
+              Importer Image
+            </span>
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleImageUpload}
+              accept="image/*"
+            />
+          </label>
+
+          <button
+            onClick={exportArt}
+            className="group relative flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all font-bold shadow-lg shadow-indigo-600/20 overflow-hidden"
+          >
+            <span className="absolute inset-0 w-full h-full bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+            <Download size={18} /> Exporter PNG
+          </button>
         </div>
       </aside>
 
-      {/* --- COMPOSANT DE PRÉVISUALISATION (CANVAS) --- */}
-      <main className="flex-1 relative flex items-center justify-center p-12">
-        {/* Grille décorative d'arrière-plan (exclue de la capture d'export) */}
+      <main className="flex-1 relative flex items-center justify-center p-6 lg:p-12 select-none">
         <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          className="absolute inset-0 opacity-[0.02] pointer-events-none"
           style={{
-            backgroundImage: "radial-gradient(#fff 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
+            backgroundImage: "radial-gradient(#fff 1.5px, transparent 1.5px)",
+            backgroundSize: "32px 32px",
           }}
         />
 
-        {/* ZONE DE CAPTURE STRICTEMENT TRANSPARENTE */}
-        <div
-          ref={stageRef}
-          className="relative w-[500px] h-[500px] flex items-center justify-center bg-transparent"
-        >
-          {/* LE BLOB SVG */}
-          <motion.div
-            style={{
-              zIndex: imageLayer === "above" ? 1 : 10,
-              rotate: params.rotate,
-              filter: `blur(${params.blur}px)`,
-            }}
-            className="absolute inset-0 w-full h-full"
-          >
-            <svg viewBox="0 0 500 500" className="w-full h-full">
-              <defs>
-                <linearGradient
-                  id="fluxyGrad"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="100%"
-                >
-                  <stop offset="0%" stopColor={colors.primary} />
-                  <stop offset="100%" stopColor={colors.secondary} />
-                </linearGradient>
-              </defs>
-              <motion.path
-                animate={{
-                  d: generateComplexBlob(
-                    500,
-                    params.growth,
-                    params.edges,
-                    params.seed,
-                    params.smoothness,
-                  ),
-                }}
-                transition={{ type: "spring", damping: 15, stiffness: 50 }}
-                fill="url(#fluxyGrad)"
-                fillOpacity={params.opacity}
-              />
-            </svg>
-          </motion.div>
+        <div className="relative p-1 rounded-[2.5rem] bg-linear-to-b from-white/10 via-transparent to-white/5 shadow-2xl">
+          <div className="relative w-[340px] h-[340px] sm:w-[500px] sm:h-[500px] rounded-[2.3rem] bg-[#09090b] border border-white/5 flex items-center justify-center overflow-hidden group">
+            <div className="absolute inset-x-0 top-0 h-8 bg-linear-to-b from-white/2 to-transparent pointer-events-none flex items-center justify-center">
+              <span className="text-[9px] uppercase font-bold tracking-[0.3em] text-white/10 group-hover:text-white/20 transition-colors">
+                Zone d'exportation
+              </span>
+            </div>
 
-          {/* L'IMAGE MOBILE (SUPPORTE LE GLISSER-DÉPOSER) */}
-          <AnimatePresence>
-            {image && (
+            <div
+              ref={stageRef}
+              className="relative w-full h-full flex items-center justify-center bg-transparent"
+            >
               <motion.div
-                drag
-                dragMomentum={false}
-                className="absolute cursor-grab active:cursor-grabbing"
-                style={{ zIndex: imageLayer === "above" ? 20 : 5 }}
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: 1, scale: 1 }}
+                style={{
+                  zIndex: imageLayer === "above" ? 1 : 10,
+                  rotate: params.rotate,
+                  filter: `blur(${params.blur}px)`,
+                }}
+                className="absolute inset-0 w-full h-full p-4"
               >
-                <div className="relative">
-                  <img
-                    src={image}
-                    alt="Art overlay"
-                    className="max-w-[260px] rounded-2xl shadow-2xl pointer-events-none border border-white/10"
-                    draggable="false"
+                <svg viewBox="0 0 500 500" className="w-full h-full">
+                  <defs>
+                    <linearGradient
+                      id="fluxyGrad"
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="100%"
+                    >
+                      <stop offset="0%" stopColor={colors.primary} />
+                      <stop offset="100%" stopColor={colors.secondary} />
+                    </linearGradient>
+                  </defs>
+                  <motion.path
+                    animate={{
+                      d: generateComplexBlob(
+                        500,
+                        params.growth,
+                        params.edges,
+                        params.seed,
+                        params.smoothness,
+                      ),
+                    }}
+                    transition={{ type: "spring", damping: 14, stiffness: 45 }}
+                    fill="url(#fluxyGrad)"
+                    fillOpacity={params.opacity}
                   />
-                  <div className="absolute -top-2 -right-2 bg-indigo-600 p-1.5 rounded-lg shadow-lg pointer-events-none">
-                    <MousePointer2 size={12} className="text-white" />
-                  </div>
-                </div>
+                </svg>
               </motion.div>
-            )}
-          </AnimatePresence>
+
+              <AnimatePresence>
+                {image && (
+                  <motion.div
+                    drag
+                    dragMomentum={false}
+                    className="absolute cursor-grab active:cursor-grabbing"
+                    style={{ zIndex: imageLayer === "above" ? 20 : 5 }}
+                    initial={{ opacity: 0, scale: 0.6 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.6 }}
+                  >
+                    <img
+                      src={image}
+                      alt="Overlay"
+                      className="max-w-[200px] sm:max-w-[260px] pointer-events-none select-none"
+                      draggable="false"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
 
-        {/* Pied de page informatif de l'espace de travail */}
-        <div className="absolute bottom-10 text-white/10 text-[10px] tracking-[0.4em] uppercase font-bold flex items-center gap-4 select-none">
-          <span>Fluxy Studio</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
-          <span>Modern-Screenshot Active</span>
+        <div className="absolute bottom-8 right-8 hidden sm:flex items-center gap-3 text-[10px] tracking-wider font-mono text-slate-600 bg-white/1 border border-white/5 px-3 py-1.5 rounded-xl">
+          <span className="text-indigo-500">W</span> 500px{" "}
+          <span className="text-purple-500">H</span> 500px
         </div>
       </main>
-
-      {/* STYLES PERSONNALISÉS DES SLIDERS DE COMMANDE */}
-      <style>{`
-        input[type="range"] { -webkit-appearance: none; background: #1a1a1a; height: 4px; border-radius: 2px; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; background: #6366f1; cursor: pointer; border: 2px solid #0c0c0c; transition: all 0.2s; }
-        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); box-shadow: 0 0 10px rgba(99, 102, 241, 0.4); }
-      `}</style>
     </div>
   );
 };
-
-// --- COMPOSANT ENCAPSULÉ DES SLIDERS ---
-const Slider = ({ label, min, max, step = 1, value, onChange }: any) => (
-  <div className="space-y-2">
-    <div className="flex justify-between items-center select-none">
-      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-        {label}
-      </span>
-      <span className="text-[11px] font-mono text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded">
-        {value}
-      </span>
-    </div>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full"
-    />
-  </div>
-);
 
 export default Fluxy;
