@@ -9,10 +9,11 @@ import {
   Palette,
   Sparkles,
   Wand2,
+  MousePointer2,
 } from "lucide-react";
-import html2canvas from "html2canvas";
+import { domToPng } from "modern-screenshot";
 
-// Algorithme de génération avancé avec bruit sinus
+// --- ALGORITHME DE GÉNÉRATION DU BLOB ---
 const generateComplexBlob = (
   size: number,
   growth: number,
@@ -26,8 +27,7 @@ const generateComplexBlob = (
 
   for (let i = 0; i < edges; i++) {
     const angle = i * angleStep;
-    // Utilisation du seed pour varier les rayons de manière pseudo-aléatoire
-    const noise = Math.sin(angle * seed) * growth;
+    const noise = Math.sin(angle * (seed * 0.5)) * growth;
     const radius = size / smoothness + noise;
     const x = center + radius * Math.cos(angle);
     const y = center + radius * Math.sin(angle);
@@ -45,16 +45,16 @@ const generateComplexBlob = (
   );
 };
 
-const FluxyV2 = () => {
+const Fluxy = () => {
+  // --- ÉTATS ---
   const [params, setParams] = useState({
-    growth: 50,
+    growth: 60,
     edges: 6,
-    seed: 42,
-    smoothness: 3,
+    seed: Math.random() * 100,
+    smoothness: 3.5,
     rotate: 0,
-    opacity: 0.9,
+    opacity: 1,
     blur: 0,
-    gradientAngle: 45,
   });
 
   const [colors, setColors] = useState({
@@ -63,98 +63,119 @@ const FluxyV2 = () => {
   });
   const [image, setImage] = useState<string | null>(null);
   const [imageLayer, setImageLayer] = useState<"above" | "below">("above");
+
+  // Référence unique sur la zone transparente à capturer
   const stageRef = useRef<HTMLDivElement>(null);
 
-  const randomize = () =>
-    setParams({
-      ...params,
+  // --- ACTIONS ---
+  const randomize = () => {
+    setParams((p) => ({
+      ...p,
       seed: Math.random() * 100,
       rotate: Math.random() * 360,
-    });
+      growth: 40 + Math.random() * 60,
+    }));
+  };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (en) => setImage(en.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // --- LOGIQUE D'EXPORTATION AVEC FIX OKLCH & TRANSPARENCE ---
   const exportArt = async () => {
     if (!stageRef.current) return;
-    const canvas = await html2canvas(stageRef.current, {
-      backgroundColor: null,
-      scale: 2,
-    });
-    const link = document.createElement("a");
-    link.download = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
+
+    try {
+      // domToPng capture fidèlement le DOM, gère l'oklch et préserve la transparence
+      const imgData = await domToPng(stageRef.current, {
+        quality: 1,
+        scale: 3, // Rendu ultra net (Haute Définition pour intégration UI)
+      });
+
+      // Déclenchement du téléchargement du fichier PNG
+      const link = document.createElement("a");
+      link.download = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
+      link.href = imgData;
+      link.click();
+    } catch (error) {
+      console.error("Erreur lors de l'exportation du PNG :", error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-300 flex flex-col lg:flex-row overflow-hidden font-sans">
-      {/* PANEL DE CONTRÔLE (SIDEBAR) */}
-      <aside className="w-full lg:w-96 bg-[#0c0c0c] border-r border-white/5 p-8 overflow-y-auto custom-scrollbar shadow-2xl z-20">
-        <header className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Sparkles className="text-white" size={22} />
+      {/* --- PANNEAU LATÉRAL (CONTROLES) --- */}
+      <aside className="w-full lg:w-96 bg-[#0c0c0c] border-r border-white/5 p-8 overflow-y-auto z-20 shadow-2xl">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <Sparkles className="text-white" size={20} />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white italic">
-            FLUXY
+          <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">
+            Fluxy
           </h1>
-        </header>
+        </div>
 
         <div className="space-y-8">
-          {/* Géométrie */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-indigo-400">
-              <Wand2 size={16} />
-              <h2 className="text-xs font-bold uppercase tracking-widest">
-                Géométrie
+          {/* Section Géométrie */}
+          <section className="space-y-5">
+            <header className="flex items-center gap-2 text-indigo-400 mb-2">
+              <Wand2 size={14} />
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                Géométrie du Blob
               </h2>
-            </div>
-            <div className="space-y-5">
-              <ControlSlider
-                label="Complexité"
-                min={3}
-                max={20}
-                value={params.edges}
-                onChange={(v) => setParams({ ...params, edges: v })}
-              />
-              <ControlSlider
-                label="Amplitude"
-                min={10}
-                max={120}
-                value={params.growth}
-                onChange={(v) => setParams({ ...params, growth: v })}
-              />
-              <ControlSlider
-                label="Lissage"
-                min={2}
-                max={6}
-                step={0.1}
-                value={params.smoothness}
-                onChange={(v) => setParams({ ...params, smoothness: v })}
-              />
-              <ControlSlider
-                label="Rotation"
-                min={0}
-                max={360}
-                value={params.rotate}
-                onChange={(v) => setParams({ ...params, rotate: v })}
-              />
-            </div>
+            </header>
+            <Slider
+              label="Complexité"
+              min={3}
+              max={15}
+              value={params.edges}
+              onChange={(v) => setParams({ ...params, edges: v })}
+            />
+            <Slider
+              label="Amplitude"
+              min={20}
+              max={150}
+              value={params.growth}
+              onChange={(v) => setParams({ ...params, growth: v })}
+            />
+            <Slider
+              label="Lissage"
+              min={2}
+              max={6}
+              step={0.1}
+              value={params.smoothness}
+              onChange={(v) => setParams({ ...params, smoothness: v })}
+            />
+            <Slider
+              label="Rotation"
+              min={0}
+              max={360}
+              value={params.rotate}
+              onChange={(v) => setParams({ ...params, rotate: v })}
+            />
           </section>
 
-          {/* Style Visuel */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-purple-400">
-              <Palette size={16} />
-              <h2 className="text-xs font-bold uppercase tracking-widest">
-                Apparence
+          {/* Section Style */}
+          <section className="space-y-5">
+            <header className="flex items-center gap-2 text-purple-400 mb-2">
+              <Palette size={14} />
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                Couleurs & Effets
               </h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            </header>
+            <div className="grid grid-cols-2 gap-3">
               <input
                 type="color"
                 value={colors.primary}
                 onChange={(e) =>
                   setColors({ ...colors, primary: e.target.value })
                 }
-                className="w-full h-10 rounded-lg bg-transparent border border-white/10 cursor-pointer"
+                className="w-full h-10 rounded-lg bg-white/5 border border-white/10 cursor-pointer"
               />
               <input
                 type="color"
@@ -162,41 +183,43 @@ const FluxyV2 = () => {
                 onChange={(e) =>
                   setColors({ ...colors, secondary: e.target.value })
                 }
-                className="w-full h-10 rounded-lg bg-transparent border border-white/10 cursor-pointer"
+                className="w-full h-10 rounded-lg bg-white/5 border border-white/10 cursor-pointer"
               />
             </div>
-            <ControlSlider
+            <Slider
+              label="Opacité"
+              min={0.1}
+              max={1}
+              step={0.1}
+              value={params.opacity}
+              onChange={(v) => setParams({ ...params, opacity: v })}
+            />
+            <Slider
               label="Flou (Glass)"
               min={0}
-              max={40}
+              max={30}
               value={params.blur}
               onChange={(v) => setParams({ ...params, blur: v })}
             />
           </section>
 
-          {/* Actions */}
-          <div className="pt-6 border-t border-white/5 space-y-4">
+          {/* Actions de l'application */}
+          <div className="pt-6 border-t border-white/5 flex flex-col gap-3">
             <button
               onClick={randomize}
-              className="w-full py-3 border border-white/10 hover:bg-white/5 rounded-xl flex items-center justify-center gap-2 transition-all font-medium"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 font-medium"
             >
               <RefreshCw size={18} /> Aléatoire
             </button>
 
-            <label className="w-full py-3 bg-white/5 hover:bg-white/10 border border-dashed border-white/20 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all">
-              <Upload size={18} /> Importer Image
+            <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+              <Upload size={18} className="group-hover:text-indigo-400" />
+              <span className="text-sm">Importer Image</span>
               <input
                 type="file"
                 className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (en) =>
-                      setImage(en.target?.result as string);
-                    reader.readAsDataURL(file);
-                  }
-                }}
+                onChange={handleImageUpload}
+                accept="image/*"
               />
             </label>
 
@@ -204,62 +227,51 @@ const FluxyV2 = () => {
               onClick={() =>
                 setImageLayer(imageLayer === "above" ? "below" : "above")
               }
-              className="w-full py-3 bg-indigo-600/10 text-indigo-400 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-600/20 transition-all"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 transition-all font-bold text-xs uppercase"
             >
-              <Layers size={18} /> Image en{" "}
+              <Layers size={16} /> Image en :{" "}
               {imageLayer === "above" ? "Premier plan" : "Arrière-plan"}
             </button>
 
             <button
               onClick={exportArt}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-indigo-600/20 font-bold"
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xl shadow-indigo-600/20 font-bold mt-4"
             >
-              <Download size={20} /> Exporter le Design
+              <Download size={20} /> Exporter PNG Transparent
             </button>
           </div>
         </div>
       </aside>
 
-      {/* ZONE DE DESIGN (PREVIEW) */}
-      <main className="flex-1 relative flex items-center justify-center bg-[#050505] overflow-hidden">
-        {/* Grille de fond subtile */}
+      {/* --- COMPOSANT DE PRÉVISUALISATION (CANVAS) --- */}
+      <main className="flex-1 relative flex items-center justify-center p-12">
+        {/* Grille décorative d'arrière-plan (exclue de la capture d'export) */}
         <div
           className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
             backgroundImage: "radial-gradient(#fff 1px, transparent 1px)",
-            backgroundSize: "30px 30px",
+            backgroundSize: "40px 40px",
           }}
         />
 
+        {/* ZONE DE CAPTURE STRICTEMENT TRANSPARENTE */}
         <div
           ref={stageRef}
-          className="relative w-[600px] h-[600px] flex items-center justify-center"
+          className="relative w-[500px] h-[500px] flex items-center justify-center bg-transparent"
         >
-          {/* LE BLOB */}
+          {/* LE BLOB SVG */}
           <motion.div
             style={{
               zIndex: imageLayer === "above" ? 1 : 10,
               rotate: params.rotate,
               filter: `blur(${params.blur}px)`,
             }}
-            animate={{
-              d: generateComplexBlob(
-                500,
-                params.growth,
-                params.edges,
-                params.seed,
-                params.smoothness,
-              ),
-            }}
-            className="w-full h-full flex items-center justify-center"
+            className="absolute inset-0 w-full h-full"
           >
-            <svg
-              viewBox="0 0 500 500"
-              className="w-full h-full drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
-            >
+            <svg viewBox="0 0 500 500" className="w-full h-full">
               <defs>
                 <linearGradient
-                  id="blobGrad"
+                  id="fluxyGrad"
                   x1="0%"
                   y1="0%"
                   x2="100%"
@@ -279,33 +291,33 @@ const FluxyV2 = () => {
                     params.smoothness,
                   ),
                 }}
-                transition={{ type: "spring", damping: 12, stiffness: 60 }}
-                fill="url(#blobGrad)"
+                transition={{ type: "spring", damping: 15, stiffness: 50 }}
+                fill="url(#fluxyGrad)"
                 fillOpacity={params.opacity}
               />
             </svg>
           </motion.div>
 
-          {/* L'IMAGE */}
+          {/* L'IMAGE MOBILE (SUPPORTE LE GLISSER-DÉPOSER) */}
           <AnimatePresence>
             {image && (
               <motion.div
                 drag
                 dragMomentum={false}
-                className="absolute"
+                className="absolute cursor-grab active:cursor-grabbing"
                 style={{ zIndex: imageLayer === "above" ? 20 : 5 }}
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.6 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
-                <div className="relative group cursor-grab active:cursor-grabbing">
-                  <div className="absolute -inset-2 bg-indigo-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
                   <img
                     src={image}
-                    alt="Art"
-                    className="max-w-[300px] rounded-2xl shadow-2xl pointer-events-none"
+                    alt="Art overlay"
+                    className="max-w-[260px] rounded-2xl shadow-2xl pointer-events-none border border-white/10"
+                    draggable="false"
                   />
-                  <div className="absolute top-2 right-2 p-1 bg-black/50 backdrop-blur-md rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Move size={14} className="text-white/70" />
+                  <div className="absolute -top-2 -right-2 bg-indigo-600 p-1.5 rounded-lg shadow-lg pointer-events-none">
+                    <MousePointer2 size={12} className="text-white" />
                   </div>
                 </div>
               </motion.div>
@@ -313,30 +325,29 @@ const FluxyV2 = () => {
           </AnimatePresence>
         </div>
 
-        {/* Aide visuelle */}
-        <div className="absolute bottom-10 flex gap-6 text-[10px] uppercase tracking-[0.3em] text-white/20">
-          <span>500x500 Canvas</span>
-          <span>•</span>
-          <span>Bezier Quadratic Flow</span>
+        {/* Pied de page informatif de l'espace de travail */}
+        <div className="absolute bottom-10 text-white/10 text-[10px] tracking-[0.4em] uppercase font-bold flex items-center gap-4 select-none">
+          <span>Fluxy Studio</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
+          <span>Modern-Screenshot Active</span>
         </div>
       </main>
 
+      {/* STYLES PERSONNALISÉS DES SLIDERS DE COMMANDE */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-        input[type="range"] { -webkit-appearance: none; height: 4px; background: #222; border-radius: 5px; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #6366f1; border-radius: 50%; cursor: pointer; border: 2px solid #050505; }
+        input[type="range"] { -webkit-appearance: none; background: #1a1a1a; height: 4px; border-radius: 2px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; background: #6366f1; cursor: pointer; border: 2px solid #0c0c0c; transition: all 0.2s; }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); box-shadow: 0 0 10px rgba(99, 102, 241, 0.4); }
       `}</style>
     </div>
   );
 };
 
-// Petit composant utilitaire pour les sliders
-const ControlSlider = ({ label, min, max, step = 1, value, onChange }: any) => (
+// --- COMPOSANT ENCAPSULÉ DES SLIDERS ---
+const Slider = ({ label, min, max, step = 1, value, onChange }: any) => (
   <div className="space-y-2">
-    <div className="flex justify-between items-center">
-      <span className="text-[11px] font-semibold text-slate-500 uppercase">
+    <div className="flex justify-between items-center select-none">
+      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
         {label}
       </span>
       <span className="text-[11px] font-mono text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded">
@@ -355,4 +366,4 @@ const ControlSlider = ({ label, min, max, step = 1, value, onChange }: any) => (
   </div>
 );
 
-export default FluxyV2;
+export default Fluxy;
