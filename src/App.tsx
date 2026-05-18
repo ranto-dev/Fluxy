@@ -13,6 +13,8 @@ import { domToPng } from "modern-screenshot";
 import Slider from "./components/Slider";
 import type { BlobColors, BlobParams, Point } from "./@types/types";
 
+const EXPORT_SIZE = 650;
+
 const generateComplexBlob = (
   size: number,
   growth: number,
@@ -46,7 +48,7 @@ const generateComplexBlob = (
 
 const Fluxy: React.FC = () => {
   const [params, setParams] = useState<BlobParams>({
-    growth: 60,
+    growth: 75,
     edges: 6,
     seed: Math.random() * 100,
     smoothness: 3.5,
@@ -69,7 +71,7 @@ const Fluxy: React.FC = () => {
       ...p,
       seed: Math.random() * 100,
       rotate: Math.random() * 360,
-      growth: 40 + Math.random() * 60,
+      growth: 50 + Math.random() * 70,
     }));
   };
 
@@ -91,7 +93,7 @@ const Fluxy: React.FC = () => {
     try {
       const imgData = await domToPng(stageRef.current, {
         quality: 1,
-        scale: 3,
+        scale: 2,
       });
       const link = document.createElement("a");
       link.download = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
@@ -120,7 +122,7 @@ const Fluxy: React.FC = () => {
             </div>
           </div>
 
-          <section className="space-y-4 bg-white/2 p-4 rounded-2xl border border-white/5">
+          <section className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5">
             <header className="flex items-center gap-2 text-indigo-400 mb-1">
               <Wand2 size={14} />
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
@@ -137,7 +139,7 @@ const Fluxy: React.FC = () => {
             <Slider
               label="Amplitude"
               min={20}
-              max={150}
+              max={180}
               value={params.growth}
               onChange={(v) => setParams({ ...params, growth: v })}
             />
@@ -158,7 +160,7 @@ const Fluxy: React.FC = () => {
             />
           </section>
 
-          <section className="space-y-4 bg-white/2 p-4 rounded-2xl border border-white/5">
+          <section className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5">
             <header className="flex items-center gap-2 text-purple-400 mb-1">
               <Palette size={14} />
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
@@ -264,7 +266,7 @@ const Fluxy: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 relative flex items-center justify-center p-6 lg:p-12 select-none">
+      <main className="flex-1 relative flex items-center justify-center p-6 lg:p-12 select-none overflow-auto bg-[#070708]">
         <div
           className="absolute inset-0 opacity-[0.02] pointer-events-none"
           style={{
@@ -274,9 +276,9 @@ const Fluxy: React.FC = () => {
         />
 
         <div className="relative p-1 rounded-[2.5rem] bg-linear-to-b from-white/10 via-transparent to-white/5 shadow-2xl">
-          <div className="relative w-[340px] h-[340px] sm:w-[500px] sm:h-[500px] rounded-[2.3rem] bg-[#09090b] border border-white/5 flex items-center justify-center overflow-hidden group">
-            <div className="absolute inset-x-0 top-0 h-8 bg-linear-to-b from-white/2 to-transparent pointer-events-none flex items-center justify-center">
-              <span className="text-[9px] uppercase font-bold tracking-[0.3em] text-white/10 group-hover:text-white/20 transition-colors">
+          <div className="relative w-[340px] h-[340px] sm:w-[650px] sm:h-[650px] rounded-[2.3rem] bg-[#09090b] border border-white/5 flex items-center justify-center overflow-hidden group">
+            <div className="absolute inset-x-0 top-0 h-8 bg-linear-to-b from-white/2 to-transparent pointer-events-none flex items-center justify-center z-30">
+              <span className="text-[9px] uppercase font-bold tracking-[0.3em] text-white/20 group-hover:text-white/40 transition-colors">
                 Zone d'exportation
               </span>
             </div>
@@ -291,9 +293,12 @@ const Fluxy: React.FC = () => {
                   rotate: params.rotate,
                   filter: `blur(${params.blur}px)`,
                 }}
-                className="absolute inset-0 w-full h-full p-4"
+                className="absolute inset-0 w-full h-full p-8"
               >
-                <svg viewBox="0 0 500 500" className="w-full h-full">
+                <svg
+                  viewBox={`0 0 ${EXPORT_SIZE} ${EXPORT_SIZE}`}
+                  className="w-full h-full"
+                >
                   <defs>
                     <linearGradient
                       id="fluxyGrad"
@@ -309,7 +314,7 @@ const Fluxy: React.FC = () => {
                   <motion.path
                     animate={{
                       d: generateComplexBlob(
-                        500,
+                        EXPORT_SIZE,
                         params.growth,
                         params.edges,
                         params.seed,
@@ -337,7 +342,7 @@ const Fluxy: React.FC = () => {
                     <img
                       src={image}
                       alt="Overlay"
-                      className="max-w-[200px] sm:max-w-[260px] pointer-events-none select-none"
+                      className="max-w-[240px] sm:max-w-[340px] pointer-events-none select-none rounded-lg shadow-xl"
                       draggable="false"
                     />
                   </motion.div>
@@ -348,8 +353,8 @@ const Fluxy: React.FC = () => {
         </div>
 
         <div className="absolute bottom-8 right-8 hidden sm:flex items-center gap-3 text-[10px] tracking-wider font-mono text-slate-600 bg-white/1 border border-white/5 px-3 py-1.5 rounded-xl">
-          <span className="text-indigo-500">W</span> 500px{" "}
-          <span className="text-purple-500">H</span> 500px
+          <span className="text-indigo-500">W</span> {EXPORT_SIZE}px{" "}
+          <span className="text-purple-500">H</span> {EXPORT_SIZE}px
         </div>
       </main>
     </div>
