@@ -342,7 +342,7 @@ const Fluxy: React.FC = () => {
                     <img
                       src={image}
                       alt="Overlay"
-                      className="max-w-[240px] sm:max-w-[340px] pointer-events-none select-none rounded-lg shadow-xl"
+                      className="max-w-[240px] sm:max-w-[340px] pointer-events-none select-none"
                       draggable="false"
                     />
                   </motion.div>
