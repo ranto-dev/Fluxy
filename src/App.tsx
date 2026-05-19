@@ -46,7 +46,7 @@ const generateComplexBlob = (
   );
 };
 
-const Fluxy: React.FC = () => {
+const App: React.FC = () => {
   const [params, setParams] = useState<BlobParams>(() => ({
     growth: 75,
     edges: 6,
@@ -96,8 +96,8 @@ const Fluxy: React.FC = () => {
         scale: 2,
       });
 
-      const fileName = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
-      
+      const fileName = `App-art-${Math.floor(Date.now() / 1000)}.png`;
+
       type WindowWithFileSystem = Window & {
         showSaveFilePicker?: (options?: {
           suggestedName?: string;
@@ -157,7 +157,7 @@ const Fluxy: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-white uppercase italic">
-                Fluxy
+                App
               </h1>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">
                 Blob Generator & Layer Lab
@@ -344,7 +344,7 @@ const Fluxy: React.FC = () => {
                 >
                   <defs>
                     <linearGradient
-                      id="fluxyGrad"
+                      id="AppGrad"
                       x1="0%"
                       y1="0%"
                       x2="100%"
@@ -365,7 +365,7 @@ const Fluxy: React.FC = () => {
                       ),
                     }}
                     transition={{ type: "spring", damping: 14, stiffness: 45 }}
-                    fill="url(#fluxyGrad)"
+                    fill="url(#AppGrad)"
                     fillOpacity={params.opacity}
                   />
                 </svg>
@@ -404,4 +404,4 @@ const Fluxy: React.FC = () => {
   );
 };
 
-export default Fluxy;
+export default App;
