@@ -47,7 +47,7 @@ const generateComplexBlob = (
 };
 
 const Fluxy: React.FC = () => {
-  const [params, setParams] = useState<BlobParams>({
+  const [params, setParams] = useState<BlobParams>(() => ({
     growth: 75,
     edges: 6,
     seed: Math.random() * 100,
@@ -55,7 +55,7 @@ const Fluxy: React.FC = () => {
     rotate: 0,
     opacity: 1,
     blur: 0,
-  });
+  }));
 
   const [colors, setColors] = useState<BlobColors>({
     primary: "#6366f1",
@@ -95,8 +95,51 @@ const Fluxy: React.FC = () => {
         quality: 1,
         scale: 2,
       });
+
+      const fileName = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
+      
+      type WindowWithFileSystem = Window & {
+        showSaveFilePicker?: (options?: {
+          suggestedName?: string;
+          types?: Array<{
+            description: string;
+            accept: Record<string, string[]>;
+          }>;
+        }) => Promise<FileSystemFileHandle>;
+      };
+
+      const customWindow = window as WindowWithFileSystem;
+
+      if (typeof customWindow.showSaveFilePicker === "function") {
+        try {
+          const handle = await customWindow.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [
+              {
+                description: "Fichier Image PNG",
+                accept: { "image/png": [".png"] },
+              },
+            ],
+          });
+
+          const response = await fetch(imgData);
+          const blob = await response.blob();
+
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") return;
+          console.warn(
+            "Échec de showSaveFilePicker, bascule sur le téléchargement natif.",
+            err,
+          );
+        }
+      }
+
       const link = document.createElement("a");
-      link.download = `fluxy-art-${Math.floor(Date.now() / 1000)}.png`;
+      link.download = fileName;
       link.href = imgData;
       link.click();
     } catch (error) {
